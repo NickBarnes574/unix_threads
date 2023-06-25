@@ -6,7 +6,7 @@
 #include "utilities.h"
 
 #define NUM_ARGS    1
-#define NUM_THREADS 10
+#define NUM_THREADS 2
 
 int main(int argc, char ** argv)
 {

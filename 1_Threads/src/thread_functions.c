@@ -7,29 +7,46 @@
 #include "utilities.h"
 
 #define MAX_THREADS 10
+#define ARRAY_SIZE  10
 
 // NOLINTNEXTLINE
-int primes[10] = { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 };
+int primes[ARRAY_SIZE] = { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 };
 
 static int thread_list_clear(thread_list_t * thread_list);
 
 void * routine(void * arg)
 {
-    sleep(1);
     pthread_mutex_lock(&mutex);
-    int index = *(int *)arg;
-    printf("%d ", primes[index]);
-    printf("\n");
-    free(arg);
-    pthread_mutex_unlock(&mutex);
+    int index = 0;
+    int sum   = 0;
+
+    if (NULL == arg)
+    {
+        print_error("NULL argument passed.");
+        goto END;
+    }
+
+    index = *(int *)arg;
+    printf("index = %d\n", index);
+
     // NOLINTNEXTLINE
+    for (int idx = 0; idx < 5; idx++)
+    {
+        // printf("current: %d\n", primes[index + idx]);
+        sum += primes[index + idx];
+    }
+    printf("Local sum: %d\n", sum);
+    *(int *)arg = sum;
+    pthread_mutex_unlock(&mutex);
+END:
+    return arg;
 }
 
 int create_threads(thread_list_t * thread_list, JOB_F routine)
 {
     int   exit_code     = E_FAILURE;
     int   create_thread = 0;
-    int * result        = NULL;
+    int * thread_idx    = NULL;
 
     if (NULL == thread_list)
     {
@@ -39,17 +56,17 @@ int create_threads(thread_list_t * thread_list, JOB_F routine)
 
     for (size_t idx = 0; idx < thread_list->size; idx++)
     {
-        // Allocate memory due to avoid multi-threading issues
-        result  = calloc(1, sizeof(int));
-        *result = idx;
+        // Allocate an index for each thread to avoid race conditions
+        thread_idx  = calloc(1, sizeof(int));
+        *thread_idx = (int)idx * (ARRAY_SIZE / 2);
 
-        if (NULL == result)
+        if (NULL == thread_idx)
         {
             print_error("CMR failure.");
             goto END;
         }
-        create_thread =
-            pthread_create(&thread_list->threads[idx], NULL, routine, result);
+        create_thread = pthread_create(
+            &thread_list->threads[idx], NULL, routine, thread_idx);
         if (E_SUCCESS != create_thread)
         {
             print_error("Unable to create thread.");
@@ -64,8 +81,10 @@ END:
 
 int join_threads(thread_list_t * thread_list)
 {
-    int exit_code   = E_FAILURE;
-    int join_thread = 0;
+    int    exit_code   = E_FAILURE;
+    int    join_thread = 0;
+    void * result      = NULL;
+    int    total_sum   = 0;
 
     if (NULL == thread_list)
     {
@@ -75,14 +94,18 @@ int join_threads(thread_list_t * thread_list)
 
     for (size_t idx = 0; idx < thread_list->size; idx++)
     {
-        join_thread = pthread_join(thread_list->threads[idx], NULL);
+        join_thread = pthread_join(thread_list->threads[idx], &result);
         if (E_SUCCESS != join_thread)
         {
             print_error("Unable to join thread.");
             goto END;
         }
+
+        total_sum += *(int *)result;
+        free(result);
     }
 
+    printf("total_sum: %d\n", total_sum);
     exit_code = E_SUCCESS;
 END:
     return exit_code;
