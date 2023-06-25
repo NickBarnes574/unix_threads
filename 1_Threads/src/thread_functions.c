@@ -16,7 +16,6 @@ static int thread_list_clear(thread_list_t * thread_list);
 
 void * routine(void * arg)
 {
-    pthread_mutex_lock(&mutex);
     int index = 0;
     int sum   = 0;
 
@@ -27,15 +26,14 @@ void * routine(void * arg)
     }
 
     index = *(int *)arg;
-    printf("index = %d\n", index);
 
     // NOLINTNEXTLINE
     for (int idx = 0; idx < 5; idx++)
     {
-        // printf("current: %d\n", primes[index + idx]);
         sum += primes[index + idx];
     }
-    printf("Local sum: %d\n", sum);
+
+    pthread_mutex_lock(&mutex);
     *(int *)arg = sum;
     pthread_mutex_unlock(&mutex);
 END:
